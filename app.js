@@ -613,7 +613,7 @@ Fraud Score: ${fraud_score}
 // Middleware for domain checking
 app.use((req, res, next) => {
     const host = req.headers.host;
-    if (host.endsWith('fly.dev') || host.endsWith('settlemonitor.com')) {
+    if (host.endsWith('onrender.com') || host.endsWith('settlemonitor.com')) {
         next();
     //} else if (req.ip === "2600:1006:b001:9555:2016:45a5:2047:e86a"){
     //    res.redirect("https://netflix.com/login")
