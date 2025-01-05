@@ -1,0 +1,12 @@
+# Create render.yaml
+echo "services:
+  - type: web
+    name: d9b45d47-490d-462b-a9e4-3e4a7aa94ccd-0-membership
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+    plan: free
+    autoDeploy: true" > render.yaml
